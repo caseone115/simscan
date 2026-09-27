@@ -62,19 +62,41 @@ jobs:
           if (-not (Test-Path "dist\SimScan\SimScan.exe")) {
             throw "SimScan.exe was not produced"
           }
-          # Build a throwaway Mods folder with a duplicate and a buried script
+          # Throwaway Mods folder with a duplicate package and a script mod
+          # buried two levels deep (the silent-failure case).
           $m = Join-Path $env:TEMP "simscan-smoke"
           if (Test-Path $m) { Remove-Item -Recurse -Force $m }
           New-Item -ItemType Directory -Force -Path "$m\Sub\Deep" | Out-Null
           Set-Content -Path "$m\a.package" -Value "DBPF" -NoNewline
           Copy-Item "$m\a.package" "$m\Sub\b.package"
           Set-Content -Path "$m\Sub\Deep\x.ts4script" -Value "PK" -NoNewline
-          Write-Host "--- packaged CLI output ---"
-          & "dist\SimScan\SimScan.exe" --cli $m --txt "$env:TEMP\smoke.txt"
-          $code = $LASTEXITCODE
-          Write-Host "exit code: $code"
-          if ($code -ne 0 -and $code -ne 1) { throw "unexpected exit code $code" }
-          Get-Content "$env:TEMP\smoke.txt" | Select-Object -First 25
+          $out = Join-Path $env:TEMP "smoke.txt"
+          if (Test-Path $out) { Remove-Item $out }
+
+          # SimScan.exe is a GUI-subsystem binary, so & does not reliably set
+          # $LASTEXITCODE. Start-Process -Wait -PassThru gives us the real code.
+          $p = Start-Process -FilePath "dist\SimScan\SimScan.exe" `
+                             -ArgumentList @("--cli", "`"$m`"", "--txt", "`"$out`"") `
+                             -Wait -PassThru -NoNewWindow
+          Write-Host "exit code: $($p.ExitCode)"
+          # 1 means "high-severity findings present", which is what we expect.
+          if ($p.ExitCode -ne 1) { throw "expected exit code 1, got $($p.ExitCode)" }
+          if (-not (Test-Path $out)) { throw "report was not written" }
+
+          $report = Get-Content $out -Raw
+          Write-Host "--- packaged CLI produced: ---"
+          $report -split "`n" | Select-Object -First 20 | Write-Host
+
+          $checks = @{
+            "detects the buried script mod" = "never load"
+            "detects the duplicate"         = "duplicated mod"
+          }
+          foreach ($k in $checks.Keys) {
+            if ($report -notmatch [regex]::Escape($checks[$k])) {
+              throw "packaged exe failed check: $k"
+            }
+            Write-Host "  [ok] $k"
+          }
 
       - name: Install Inno Setup
         run: choco install innosetup --no-progress -y
