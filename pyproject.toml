@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "simscan"
+version = "1.0.0"
+description = "Offline auditor for The Sims 4 Mods folder"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+dependencies = ["pillow>=9.0"]
+
+[project.optional-dependencies]
+build = ["pyinstaller>=5.0"]
+trash = ["send2trash>=1.8"]
+
+[project.scripts]
+simscan = "simscan.__main__:main"
+
+[tool.setuptools]
+packages = ["simscan"]

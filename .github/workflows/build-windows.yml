@@ -1,0 +1,136 @@
+name: Build Windows release
+
+# Produces a genuine Windows build on a real Windows runner - no Wine, no
+# cross-compilation. Attaches the portable zip, the installer and a SHA-256
+# checksum file to a GitHub Release, and makes the portable zip available as
+# a plain workflow artifact for every run.
+
+on:
+  push:
+    tags: ["v*"]
+    branches: ["main", "master"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    name: Tests
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip pillow
+      - name: Run test suite
+        run: python tests/run_tests.py
+
+  build-windows:
+    name: Build installer
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          architecture: x64
+
+      - name: Install build dependencies
+        run: python -m pip install --upgrade pip pillow pyinstaller
+
+      - name: Verify the app imports and runs headlessly
+        run: |
+          python -c "import simscan.analyzer, simscan.dbpf, simscan.dds, simscan.report, simscan.recyclex, simscan.gui; print('imports OK')"
+          python -m simscan.cli --help
+
+      - name: Build SimScan.exe with PyInstaller
+        run: pyinstaller --clean --noconfirm build/simscan.spec
+
+      - name: Smoke-test the packaged executable
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "dist\SimScan\SimScan.exe")) {
+            throw "SimScan.exe was not produced"
+          }
+          # Build a throwaway Mods folder with a duplicate and a buried script
+          $m = Join-Path $env:TEMP "simscan-smoke"
+          if (Test-Path $m) { Remove-Item -Recurse -Force $m }
+          New-Item -ItemType Directory -Force -Path "$m\Sub\Deep" | Out-Null
+          Set-Content -Path "$m\a.package" -Value "DBPF" -NoNewline
+          Copy-Item "$m\a.package" "$m\Sub\b.package"
+          Set-Content -Path "$m\Sub\Deep\x.ts4script" -Value "PK" -NoNewline
+          Write-Host "--- packaged CLI output ---"
+          & "dist\SimScan\SimScan.exe" --cli $m --txt "$env:TEMP\smoke.txt"
+          $code = $LASTEXITCODE
+          Write-Host "exit code: $code"
+          if ($code -ne 0 -and $code -ne 1) { throw "unexpected exit code $code" }
+          Get-Content "$env:TEMP\smoke.txt" | Select-Object -First 25
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Build the installer (Inno Setup)
+        shell: pwsh
+        run: |
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { throw "ISCC.exe not found" }
+          & $iscc "build\simscan.iss"
+          if (-not (Test-Path "dist\installer\SimScan-1.0.0-Setup.exe")) {
+            throw "installer was not produced"
+          }
+
+      - name: Package the portable zip
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "dist\SimScan\*" `
+                           -DestinationPath "dist\SimScan-1.0.0-portable.zip" -Force
+
+      - name: Write checksums
+        shell: pwsh
+        run: |
+          $lines = @()
+          foreach ($f in @("dist\installer\SimScan-1.0.0-Setup.exe",
+                           "dist\SimScan-1.0.0-portable.zip")) {
+            if (Test-Path $f) {
+              $h = (Get-FileHash $f -Algorithm SHA256).Hash.ToLower()
+              $lines += "$h  $(Split-Path $f -Leaf)"
+            }
+          }
+          $lines | Set-Content "dist\SHA256SUMS.txt"
+          Get-Content "dist\SHA256SUMS.txt"
+
+      - name: Upload portable zip as a workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SimScan-1.0.0-portable
+          path: dist/SimScan-1.0.0-portable.zip
+          if-no-files-found: error
+
+      - name: Upload installer as a workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SimScan-1.0.0-installer
+          path: |
+            dist/installer/SimScan-1.0.0-Setup.exe
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
+
+      - name: Publish a Release (tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/installer/SimScan-1.0.0-Setup.exe
+            dist/SimScan-1.0.0-portable.zip
+            dist/SHA256SUMS.txt
+          generate_release_notes: true
