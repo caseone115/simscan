@@ -48,9 +48,6 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; \
     GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; \
-    GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked; \
-    OnlyBelowVersion: 6.1; Components: not (Tasks: desktopicon)
 
 [Files]
 Source: "..\dist\SimScan\*"; DestDir: "{app}"; \
@@ -61,8 +58,6 @@ Name: "{group}\{#AppName}";              Filename: "{app}\{#AppExeName}"
 Name: "{group}\{cm:UninstallProgram,{#AppName}}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#AppName}";        Filename: "{app}\{#AppExeName}"; \
     Tasks: desktopicon
-Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\{#AppName}"; \
-    Filename: "{app}\{#AppExeName}"; Tasks: quicklaunchicon
 
 [Run]
 Filename: "{app}\{#AppExeName}"; \
