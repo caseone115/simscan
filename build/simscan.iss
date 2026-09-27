@@ -12,6 +12,8 @@
 #define AppExeName     "SimScan.exe"
 
 [Setup]
+; ISCC is run from the repository root, so anchor relative paths there
+SourceDir=..
 AppId={{8F3B2C41-7D5E-4A19-9C6B-5E21A7D4F8C3}
 AppName={#AppName}
 AppVersion={#AppVersion}

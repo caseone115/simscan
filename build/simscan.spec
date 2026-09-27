@@ -7,7 +7,14 @@ Output: dist/SimScan/SimScan.exe  (plus a portable single-file build)
 import os
 
 block_cipher = None
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+# PyInstaller exec()s this spec, so __file__ is undefined. It does inject
+# SPECPATH for us, so prefer that and fall back to the working directory.
+try:
+    SPEC_DIR = SPECPATH                      # noqa: F821 (injected)
+except NameError:                            # pragma: no cover
+    SPEC_DIR = os.getcwd()
+ROOT = os.path.abspath(os.path.join(SPEC_DIR, ".."))
 ICON = os.path.join(ROOT, "assets", "simscan.ico")
 
 a = Analysis(
