@@ -18,7 +18,7 @@ ROOT = os.path.abspath(os.path.join(SPEC_DIR, ".."))
 ICON = os.path.join(ROOT, "assets", "simscan.ico")
 
 a = Analysis(
-    [os.path.join(ROOT, "simscan", "__main__.py")],
+    [os.path.join(SPEC_DIR, "launcher.py")],
     pathex=[ROOT],
     binaries=[],
     datas=[],
