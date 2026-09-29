@@ -114,6 +114,13 @@ python -m simscan.cli FOLDER   # command line
 
 Requires Python 3.9+ and tkinter.
 
+## See it
+
+SimScan has a page of its own now, showing the report the app actually
+produces from a deliberately broken folder:
+
+<https://caseone115.github.io/simscan/>
+
 ## Buy it
 
 SimScan is a paid download (US$14) at https://teeterbot.gumroad.com/l/simscan.
