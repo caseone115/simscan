@@ -141,11 +141,15 @@ build (`.github/workflows/build-windows.yml`, runs on `windows-latest`) installs
 it silently, asserts the installed `SimScan.exe`, the uninstaller and the Start
 Menu shortcut exist, then runs the *installed* copy against the same kind of
 broken folder and requires exit code 1 with all three planted defects present.
-It then uninstalls silently and asserts nothing was left behind. Both files also
-have SHA-256 checksums published in `release/SHA256SUMS.txt`.
+It then uninstalls silently and asserts nothing was left behind.
 
-The source suite is 48 checks, run on Windows against Python 3.9 and 3.12 by the
-same workflow.
+The checksums of the two shipped files are published next to the same two files,
+cut from the build that ran the test above, so the hashes and the binaries always
+come from one build: they are attached to the latest GitHub Release and to the
+paid listing itself.
+
+The source suite is 48 checks locally, of which 47 run on Windows against Python
+3.9 and 3.12 by the same workflow.
 
 ## Licence
 
