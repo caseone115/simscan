@@ -4,7 +4,8 @@
 folder; it tells you what is broken, what is duplicated, what is fighting,
 and — crucially — what the game is *silently ignoring*.
 
-Nothing is uploaded. No account. No internet connection required. Free.
+Nothing is uploaded. No account. No internet connection required.
+The source is free and MIT-licensed; the built Windows binaries are US$14.
 
 ---
 
@@ -117,21 +118,27 @@ Requires Python 3.9+ and tkinter.
 
 SimScan is a paid download (US$14) at https://teeterbot.gumroad.com/l/simscan.
 The source stays MIT and public here: read it, build it, or audit it before you
-ever pay for anything. Buying gets you the signed-off Windows build so you do
-not have to construct it yourself.
+ever pay for anything. Buying gets you the acceptance-tested Windows build,
+both the installer and the portable zip, so you do not have to construct it
+yourself.
 
 ## Acceptance testing status
 
-The portable build has been run as the shipped Windows executable and verified:
-pointed at a deliberately broken Mods folder it reported the planted defects
-(dead script mod, duplicate files under different names, resource conflict,
-empty package, files that should not be in Mods) and wrote a parseable report.
+The **portable** build has been run as the shipped Windows executable: pointed
+at a deliberately broken Mods folder it reported the planted defects (dead
+script mod, duplicate files under different names, resource conflict, empty
+package, files that should not be in Mods) and wrote a parseable report.
 
-**The installer is not yet proven end to end.** Its SHA-256 matches the
-published `release/SHA256SUMS.txt`, but it is a 32-bit installer and the only
-available test machine here is 64-bit-only, so it could not be executed. Treat
-the portable zip as the proven build until the installer is tested on real
-Windows.
+The **installer** is now proven end to end on real Windows. Its GitHub Actions
+build (`.github/workflows/build-windows.yml`, runs on `windows-latest`) installs
+it silently, asserts the installed `SimScan.exe`, the uninstaller and the Start
+Menu shortcut exist, then runs the *installed* copy against the same kind of
+broken folder and requires exit code 1 with all three planted defects present.
+It then uninstalls silently and asserts nothing was left behind. Both files also
+have SHA-256 checksums published in `release/SHA256SUMS.txt`.
+
+The source suite is 48 checks, run on Windows against Python 3.9 and 3.12 by the
+same workflow.
 
 ## Licence
 
