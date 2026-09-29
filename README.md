@@ -113,6 +113,26 @@ python -m simscan.cli FOLDER   # command line
 
 Requires Python 3.9+ and tkinter.
 
+## Buy it
+
+SimScan is a paid download (US$14) at https://teeterbot.gumroad.com/l/simscan.
+The source stays MIT and public here: read it, build it, or audit it before you
+ever pay for anything. Buying gets you the signed-off Windows build so you do
+not have to construct it yourself.
+
+## Acceptance testing status
+
+The portable build has been run as the shipped Windows executable and verified:
+pointed at a deliberately broken Mods folder it reported the planted defects
+(dead script mod, duplicate files under different names, resource conflict,
+empty package, files that should not be in Mods) and wrote a parseable report.
+
+**The installer is not yet proven end to end.** Its SHA-256 matches the
+published `release/SHA256SUMS.txt`, but it is a 32-bit installer and the only
+available test machine here is 64-bit-only, so it could not be executed. Treat
+the portable zip as the proven build until the installer is tested on real
+Windows.
+
 ## Licence
 
 MIT. See `LICENSE`.

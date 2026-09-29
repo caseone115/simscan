@@ -7,3 +7,6 @@ dist/
 venv/
 *.egg-info/
 scratch/
+# local working artifacts - never published
+release/
+_patch_readme.py
