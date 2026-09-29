@@ -131,7 +131,6 @@ jobs:
           $lines | Set-Content "dist\SHA256SUMS.txt"
           Get-Content "dist\SHA256SUMS.txt"
 
-      - name: Upload portable zip as a workflow artifact
       - name: Install the built installer silently and verify it end to end
         shell: pwsh
         run: |
@@ -191,6 +190,7 @@ jobs:
           Write-Host "  [ok] silent uninstall removed the installed copy"
 
           Write-Host "installer acceptance test passed end to end on real Windows"
+      - name: Upload portable zip as a workflow artifact
         uses: actions/upload-artifact@v4
         with:
           name: SimScan-1.0.0-portable
