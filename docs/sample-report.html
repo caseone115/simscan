@@ -1,0 +1,110 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<title>SimScan report - Mods (example folder)</title>
+<style>
+ body{font:15px/1.55 -apple-system,Segoe UI,Roboto,sans-serif;
+   margin:0;background:#0f1420;color:#e8ecf4}
+ .wrap{max-width:960px;margin:0 auto;padding:32px 20px 64px}
+ h1{font-size:26px;margin:0 0 4px}
+ .sub{color:#8b98ad;margin-bottom:24px;font-size:13px}
+ .cards{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:28px}
+ .card{background:#171e2e;border:1px solid #232c40;border-radius:10px;
+   padding:14px 18px;min-width:120px}
+ .card b{display:block;font-size:22px}
+ .card span{color:#8b98ad;font-size:12px;text-transform:uppercase;
+   letter-spacing:.04em}
+ .finding{background:#171e2e;border:1px solid #232c40;border-left-width:4px;
+   border-radius:10px;padding:16px 18px;margin-bottom:14px}
+ .high{border-left-color:#ef4444} .medium{border-left-color:#f59e0b}
+ .low{border-left-color:#3b82f6} .info{border-left-color:#64748b}
+ .finding h3{margin:0 0 6px;font-size:16px}
+ .pill{font-size:11px;padding:2px 8px;border-radius:99px;
+   background:#232c40;color:#a9b6cc;margin-right:8px;text-transform:uppercase}
+ .detail{color:#c2ccdd;margin:6px 0}
+ .fix{color:#7fd1a6;font-size:13px;margin-top:8px}
+ .files{margin:10px 0 0;padding-left:18px;color:#93a1b8;font-size:13px}
+ .files li{margin:2px 0;word-break:break-all}
+ .more{color:#8b98ad;font-size:12px;margin-top:6px}
+ table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}
+ th,td{text-align:left;padding:6px 8px;border-bottom:1px solid #232c40}
+ th{color:#8b98ad;font-weight:500}
+ footer{color:#5d6a80;font-size:12px;margin-top:40px}
+</style></head><body><div class="wrap">
+<h1>SimScan report</h1>
+<div class="sub">Mods (example folder) &middot; 2026-09-29 22:48:56
+ &middot; SimScan 1.0.0</div>
+<div class="cards">
+ <div class="card"><b>11</b><span>Files</span></div>
+ <div class="card"><b>7</b><span>Packages</span></div>
+ <div class="card"><b>1</b><span>Script mods</span></div>
+ <div class="card"><b>208.9 KB</b><span>Size</span></div>
+ <div class="card"><b>3</b><span>High issues</span></div>
+</div>
+<div class="finding high">
+<h3><span class="pill">High</span>1 script mod that will never load</h3>
+<div class="detail">The Sims 4 only loads .ts4script files up to 1 subfolder deep. These are ignored completely - no error, no LastException, they just do nothing. This is the most common result of tidying up a Mods folder.</div>
+<div class="detail"><em>Evidence: Game script loader depth limit</em></div>
+<div class="fix">&#10003; Move each .ts4script up so it sits in Mods\ or Mods\&lt;one folder&gt;\</div>
+<ul class="files">
+<li>ScriptMods/MCCC/mc_cmd_center.ts4script</li>
+</ul>
+</div>
+<div class="finding high">
+<h3><span class="pill">High</span>2 duplicated mods (2 wasted)</h3>
+<div class="detail">These files are byte-for-byte identical but sit under different names, so name-based duplicate checkers miss them. Reclaim roughly 0.1 MB.</div>
+<div class="detail"><em>Evidence: SHA-256 content match</em></div>
+<div class="fix">&#10003; Keep one copy of each, delete the rest.</div>
+<ul class="files">
+<li>Loose Files/JacBaconIsLife (1).package</li>
+<li>[MOD] SimmerTales/Jac_BaconIsLife.package</li>
+<li>[MOD] TraitPackA/Hair_A.package</li>
+<li>[MOD] TraitPackA/Hair_A_copy.package</li>
+</ul>
+</div>
+<div class="finding high">
+<h3><span class="pill">High</span>1 resource conflict between mods (1 gameplay)</h3>
+<div class="detail">Two or more mods define the same resource ID with different content. The game does not merge these - it loads one and silently ignores the rest, so the other mod&#x27;s changes never happen.
+
+Which one wins is decided by Resource.cfg priority first, then folder depth (shallower wins), then filename order.
+
+SimData 545AC67A:00000000:2F1A3C4D5E6F7788
+      loaded: [MOD] TraitPackB/Bold_Trait_Remake.package   (priority 500, depth 2)
+      ignored: [MOD] TraitPackA/Bold_Trait_v1.package</div>
+<div class="detail"><em>Evidence: Same type:group:instance keys, different payload hashes</em></div>
+<div class="fix">&#10003; Decide which mod you actually want and remove or replace the other. If both are needed, ask the creators for a compatibility patch.</div>
+<ul class="files">
+<li>[MOD] TraitPackA/Bold_Trait_v1.package</li>
+<li>[MOD] TraitPackB/Bold_Trait_Remake.package</li>
+</ul>
+</div>
+<div class="finding medium">
+<h3><span class="pill">Medium</span>1 package with no content</h3>
+<div class="detail">Valid header, zero content. They do nothing at all.</div>
+<div class="fix">&#10003; Delete.</div>
+<ul class="files">
+<li>Loose Files/empty.package</li>
+</ul>
+</div>
+<div class="finding low">
+<h3><span class="pill">Low</span>34 duplicate resources across files</h3>
+<div class="detail">The same resource ID with byte-identical content appears in more than one package. This is harmless - the game picks one and the result is the same either way - but one copy is redundant.</div>
+<div class="detail"><em>Evidence: Same key + same payload hash</em></div>
+<div class="fix">&#10003; Remove the duplicate copy (check the duplicates list first).</div>
+<ul class="files">
+<li>Loose Files/JacBaconIsLife (1).package</li>
+<li>[MOD] SimmerTales/Jac_BaconIsLife.package</li>
+<li>[MOD] TraitPackA/Hair_A.package</li>
+<li>[MOD] TraitPackA/Hair_A_copy.package</li>
+</ul>
+</div>
+<div class="finding low">
+<h3><span class="pill">Low</span>3 files that should not be in Mods</h3>
+<div class="detail">Archives, readmes and shortcuts sitting in the Mods folder. The game ignores them, but they slow scanning and hide the real content.</div>
+<div class="fix">&#10003; Move to a downloads folder outside Mods.</div>
+<ul class="files">
+<li>Downloads/mod.zip</li>
+<li>Downloads/readme.txt</li>
+<li>Loose Files/Broken.url</li>
+</ul>
+</div>
+</div></body></html>
