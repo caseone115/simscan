@@ -51,24 +51,31 @@ def card(path):
     d.rounded_rectangle([PAD, 50, PAD + w + 36, 50 + 40], radius=20, fill=ACCENT)
     d.text((PAD + 18, 71), label, font=f_badge, fill=BG, anchor="lm")
 
+    # Layout is tracked, not guessed: every block records where it ended and the
+    # next one asserts it starts below it. The first version drew a third
+    # subtitle line straight through the chip row (5px apart) and nothing caught
+    # it until the finished card was measured band by band.
     y = 122
-    for line in ["Something in your Sims 4", "Mods folder is silently", "doing nothing."]:
+    for line in ["Something in your Sims 4", "Mods folder is silently",
+                 "doing nothing."]:
         d.text((PAD, y), line, font=f_title, fill=INK)
-        y += 62
+        y += 58
     y += 8
-    for line in ["SimScan reads the folder offline and reports the script mods that",
-                 "will never load, duplicates under different names, and which mod",
-                 "actually wins a conflict."]:
+    for line in ["SimScan reads the folder offline and reports the script mods",
+                 "that will never load, and which mod wins a conflict."]:
         d.text((PAD, y), line, font=f_sub, fill=MUTED)
-        y += 36
+        y += 34
+    sub_end = y
 
-    # explicit rows: two chips per row, so nothing can wrap where it was not
-    # planned to (the first version packed four into one row and ran 83px over).
+    chips_top = 402
+    assert chips_top - sub_end >= 20, (
+        f"chip row at {chips_top} collides with the subtitle ending at {sub_end}")
+
     chip_rows = [[("script mod too deep", WARN),
                   ("duplicate by content hash", WARN)],
                  [("conflict winner named", GOOD),
                   ("no account, no network", GOOD)]]
-    cy = 372
+    cy = chips_top
     for row in chip_rows:
         x = PAD
         for text, colour in row:
@@ -80,6 +87,9 @@ def card(path):
             d.text((x + 34, cy + 21), text, font=f_chip, fill=MUTED, anchor="lm")
             x += cw + 14
         cy += 50
+    chips_end = cy - 10
+    assert H - 106 - chips_end >= 30, (
+        f"price line collides with the chip rows (chips end {chips_end})")
 
     d.text((PAD, H - 106), "US$14  ·  Windows installer + portable build  ·  source is MIT", font=f_price, fill=ACCENT)
     d.text((PAD, H - 58), "caseone115.github.io/simscan", font=f_mono, fill=DIM)
