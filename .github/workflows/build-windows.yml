@@ -132,6 +132,65 @@ jobs:
           Get-Content "dist\SHA256SUMS.txt"
 
       - name: Upload portable zip as a workflow artifact
+      - name: Install the built installer silently and verify it end to end
+        shell: pwsh
+        run: |
+          $setup = "dist\installer\SimScan-1.0.0-Setup.exe"
+          if (-not (Test-Path $setup)) { throw "installer was not produced" }
+          # This runner is the real Windows machine that was missing: the only
+          # place the installer has ever been built is a Linux box that cannot
+          # execute a 32-bit setup, so it has never actually been run.
+          $dir = Join-Path $env:TEMP "SimScanInstalled"
+          $p = Start-Process -FilePath $setup `
+                           -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/NOICONS", "/DIR=`"$dir`"") `
+                           -Wait -PassThru
+          Write-Host "installer exit code: $($p.ExitCode)"
+          if ($p.ExitCode -ne 0) { throw "installer failed with exit code $($p.ExitCode)" }
+
+          $exe = Join-Path $dir "SimScan.exe"
+          if (-not (Test-Path $exe)) { throw "SimScan.exe was not installed into $dir" }
+          if (-not (Test-Path (Join-Path $dir "unins000.exe"))) { throw "no uninstaller was written" }
+          $lnk = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\SimScan\SimScan.lnk"
+          if (-not (Test-Path $lnk)) { throw "no Start Menu shortcut was created" }
+          Write-Host "  [ok] installed SimScan.exe, Start Menu shortcut and uninstaller"
+
+          # Run the installed copy - not the build output - against a broken folder
+          $m = Join-Path $env:TEMP "simscan-installed-smoke"
+          New-Item -ItemType Directory -Force -Path "$m\Sub\Deep" | Out-Null
+          Set-Content -Path "$m\a.package" -Value "DBPF" -NoNewline
+          Copy-Item "$m\a.package" "$m\Sub\b.package"
+          Set-Content -Path "$m\Sub\Deep\x.ts4script" -Value "PK" -NoNewline
+          Set-Content -Path "$m\broken.package" -Value "not a package" -NoNewline
+          $out = Join-Path $env:TEMP "installed-smoke.txt"
+          $r = Start-Process -FilePath $exe `
+                           -ArgumentList @("--cli", "`"$m`"", "--txt", "`"$out`"") `
+                           -Wait -PassThru -NoNewWindow
+          Write-Host "installed app exit code: $($r.ExitCode)"
+          if ($r.ExitCode -ne 1) { throw "expected exit code 1 from the installed app, got $($r.ExitCode)" }
+          if (-not (Test-Path $out)) { throw "the installed app wrote no report" }
+
+          $report = Get-Content $out -Raw
+          $checks = @{
+            "installed app finds the buried script mod" = "never load"
+            "installed app finds the duplicate"         = "duplicated mod"
+            "installed app finds the corrupt package"   = "could not be parsed"
+          }
+          foreach ($k in $checks.Keys) {
+            if ($report -notmatch [regex]::Escape($checks[$k])) {
+              throw "installed app failed check: $k"
+            }
+            Write-Host "  [ok] $k"
+          }
+
+          # Silent uninstall, then prove it is really gone
+          $u = Start-Process -FilePath (Join-Path $dir "unins000.exe") `
+                           -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART") `
+                           -Wait -PassThru
+          if ($u.ExitCode -ne 0) { throw "uninstaller failed with exit code $($u.ExitCode)" }
+          if (Test-Path $exe) { throw "uninstall left SimScan.exe behind" }
+          Write-Host "  [ok] silent uninstall removed the installed copy"
+
+          Write-Host "installer acceptance test passed end to end on real Windows"
         uses: actions/upload-artifact@v4
         with:
           name: SimScan-1.0.0-portable
