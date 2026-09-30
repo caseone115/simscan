@@ -372,6 +372,34 @@ def test_exception(tmp):
           ranked and "mccc_extra" in ranked[0][0], str(ranked[:1]))
 
 
+def test_version_surfaces():
+    """Every surface that states a version must state the same one.
+
+    Added 2026-09-30: the v1.0.1 release shipped an installer named
+    SimScan-1.0.0-Setup.exe whose own resource said 1.0.0 and whose uninstall
+    entry wrote DisplayVersion 1.0.0. Nothing in the suite noticed, because
+    nothing in the suite knew a version had more than one surface. The assertion
+    itself lives in scripts/check_version_consistency.py (it also reads a built
+    artifact's own PE resource, which needs a build), so this drives that.
+    """
+    print("\nVersion surfaces")
+    import subprocess
+    script = os.path.join(ROOT, "scripts", "check_version_consistency.py")
+    r = subprocess.run([sys.executable, script], capture_output=True, text=True,
+                       cwd=ROOT)
+    detail = (r.stdout or "").strip().splitlines()
+    tail = " | ".join(detail[-3:])[:300]
+    check("every version surface agrees", r.returncode == 0, tail)
+
+    # And the accessor must survive a same-length version bump, which defeats
+    # CPython's bytecode-cache check (mtime + size): observed for real here.
+    acc = os.path.join(ROOT, "scripts", "version.py")
+    r2 = subprocess.run([sys.executable, acc, "--check"], capture_output=True,
+                        text=True, cwd=ROOT)
+    check("the version accessor agrees with an import",
+          r2.returncode == 0, (r2.stdout or "").strip()[-200:])
+
+
 def main():
     print("=" * 68)
     print("SimScan test suite")
@@ -386,6 +414,7 @@ def main():
         test_disable_undo(tmp)
         test_reports(tmp)
         test_exception(tmp)
+        test_version_surfaces()
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 

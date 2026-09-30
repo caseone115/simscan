@@ -39,7 +39,7 @@ Being straight with you, because this area is full of tools that over-promise:
 
 ## Install
 
-Download `SimScan-1.0.0-Setup.exe` and run it. Windows will show a
+Download `SimScan-1.0.2-Setup.exe` and run it. Windows will show a
 SmartScreen warning because the installer is not code-signed — click
 **More info → Run anyway**. You get a Start Menu entry and a normal
 uninstaller.

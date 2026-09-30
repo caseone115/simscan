@@ -4,6 +4,14 @@ name: Build Windows release
 # cross-compilation. Attaches the portable zip, the installer and a SHA-256
 # checksum file to a GitHub Release, and makes the portable zip available as
 # a plain workflow artifact for every run.
+#
+# The version is NEVER written in this file. Every job reads it from
+# `scripts/version.py` (which reads the single source, simscan/__init__.py) and
+# computes filenames from it. On 2026-09-30 this workflow built a v1.0.1 release
+# whose installer was called SimScan-1.0.0-Setup.exe, reported 1.0.0 as its own
+# version and wrote DisplayVersion 1.0.0 into the uninstall entry, because the
+# number was written out here as a literal in eleven places.
+# `scripts/check_version_consistency.py` fails if a literal comes back.
 
 on:
   push:
@@ -48,10 +56,21 @@ jobs:
       - name: Install build dependencies
         run: python -m pip install --upgrade pip pillow pyinstaller
 
-      - name: Verify the app imports and runs headlessly
+      - name: Read the version and assert every surface agrees
+        shell: pwsh
         run: |
-          python -c "import simscan.analyzer, simscan.dbpf, simscan.dds, simscan.report, simscan.recyclex, simscan.gui; print('imports OK')"
-          python -m simscan.cli --help
+          $v  = (python scripts/version.py).Trim()
+          $v4 = (python scripts/version.py --four).Trim()
+          if (-not $v)  { throw "scripts/version.py produced no version" }
+          if (-not $v4) { throw "scripts/version.py --four produced no version" }
+          "SIMSCAN_VERSION=$v"  | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "SIMSCAN_VERFOUR=$v4" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          Write-Host "version $v (four-part $v4)"
+          python scripts/check_version_consistency.py
+          if ($LASTEXITCODE -ne 0) { throw "version surfaces disagree - refusing to build" }
+
+      - name: Verify every module imports
+        run: python scripts/check_imports.py
 
       - name: Build SimScan.exe with PyInstaller
         run: pyinstaller --clean --noconfirm build/simscan.spec
@@ -65,13 +84,13 @@ jobs:
           # Throwaway Mods folder with a duplicate package and a script mod
           # buried two levels deep (the silent-failure case).
           $m = Join-Path $env:TEMP "simscan-smoke"
-          if (Test-Path $m) { Remove-Item -Recurse -Force $m }
+          if (Test-Path $m) { [System.IO.Directory]::Delete($m, $true) }
           New-Item -ItemType Directory -Force -Path "$m\Sub\Deep" | Out-Null
           Set-Content -Path "$m\a.package" -Value "DBPF" -NoNewline
           Copy-Item "$m\a.package" "$m\Sub\b.package"
           Set-Content -Path "$m\Sub\Deep\x.ts4script" -Value "PK" -NoNewline
           $out = Join-Path $env:TEMP "smoke.txt"
-          if (Test-Path $out) { Remove-Item $out }
+          if (Test-Path $out) { [System.IO.File]::Delete($out) }
 
           # SimScan.exe is a GUI-subsystem binary, so & does not reliably set
           # $LASTEXITCODE. Start-Process -Wait -PassThru gives us the real code.
@@ -106,23 +125,23 @@ jobs:
         run: |
           $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $iscc)) { throw "ISCC.exe not found" }
-          & $iscc "build\simscan.iss"
-          if (-not (Test-Path "dist\installer\SimScan-1.0.0-Setup.exe")) {
-            throw "installer was not produced"
-          }
+          $setup = "dist\installer\SimScan-$env:SIMSCAN_VERSION-Setup.exe"
+          & $iscc "/DAppVersion=$env:SIMSCAN_VERSION" "/DVerFour=$env:SIMSCAN_VERFOUR" "build\simscan.iss"
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
+          if (-not (Test-Path $setup)) { throw "installer was not produced at $setup" }
 
       - name: Package the portable zip
         shell: pwsh
         run: |
           Compress-Archive -Path "dist\SimScan\*" `
-                           -DestinationPath "dist\SimScan-1.0.0-portable.zip" -Force
+                           -DestinationPath "dist\SimScan-$env:SIMSCAN_VERSION-portable.zip" -Force
 
       - name: Write checksums
         shell: pwsh
         run: |
           $lines = @()
-          foreach ($f in @("dist\installer\SimScan-1.0.0-Setup.exe",
-                           "dist\SimScan-1.0.0-portable.zip")) {
+          foreach ($f in @("dist\installer\SimScan-$env:SIMSCAN_VERSION-Setup.exe",
+                           "dist\SimScan-$env:SIMSCAN_VERSION-portable.zip")) {
             if (Test-Path $f) {
               $h = (Get-FileHash $f -Algorithm SHA256).Hash.ToLower()
               $lines += "$h  $(Split-Path $f -Leaf)"
@@ -134,7 +153,7 @@ jobs:
       - name: Install the built installer silently and verify it end to end
         shell: pwsh
         run: |
-          $setup = "dist\installer\SimScan-1.0.0-Setup.exe"
+          $setup = "dist\installer\SimScan-$env:SIMSCAN_VERSION-Setup.exe"
           if (-not (Test-Path $setup)) { throw "installer was not produced" }
           # This runner is the real Windows machine that was missing: the only
           # place the installer has ever been built is a Linux box that cannot
@@ -152,6 +171,16 @@ jobs:
           $lnk = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\SimScan\SimScan.lnk"
           if (-not (Test-Path $lnk)) { throw "no Start Menu shortcut was created" }
           Write-Host "  [ok] installed SimScan.exe, Start Menu shortcut and uninstaller"
+
+          # The version the OS records for this install is exactly what a
+          # package manager reads back to decide whether it matches a manifest.
+          $key = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\SimScan"
+          $dv = (Get-ItemProperty -Path $key -Name DisplayVersion).DisplayVersion
+          Write-Host "  uninstall entry DisplayVersion: $dv"
+          if ($dv -ne $env:SIMSCAN_VERSION) {
+            throw "installed version is $dv but the release version is $($env:SIMSCAN_VERSION)"
+          }
+          Write-Host "  [ok] the installed version matches the release version"
 
           # Run the installed copy - not the build output - against a broken folder
           $m = Join-Path $env:TEMP "simscan-installed-smoke"
@@ -181,6 +210,12 @@ jobs:
             Write-Host "  [ok] $k"
           }
 
+          # The installed app must report the same version the release claims.
+          if ($report -notmatch [regex]::Escape($env:SIMSCAN_VERSION)) {
+            throw "the installed app's report does not name version $($env:SIMSCAN_VERSION)"
+          }
+          Write-Host "  [ok] the installed app reports version $($env:SIMSCAN_VERSION)"
+
           # Silent uninstall, then prove it is really gone
           $u = Start-Process -FilePath (Join-Path $dir "unins000.exe") `
                            -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART") `
@@ -190,19 +225,29 @@ jobs:
           Write-Host "  [ok] silent uninstall removed the installed copy"
 
           Write-Host "installer acceptance test passed end to end on real Windows"
+
+      # Last word: read the built installer's OWN Windows version resource and
+      # assert it agrees with everything above. This is the check that would
+      # have caught a v1.0.1 release shipping a 1.0.0 installer.
+      - name: Assert the built artifacts carry the release version
+        shell: pwsh
+        run: |
+          python scripts/check_version_consistency.py "dist\installer\SimScan-$env:SIMSCAN_VERSION-Setup.exe"
+          if ($LASTEXITCODE -ne 0) { throw "built artifact version disagrees with the release" }
+
       - name: Upload portable zip as a workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SimScan-1.0.0-portable
-          path: dist/SimScan-1.0.0-portable.zip
+          name: SimScan-${{ env.SIMSCAN_VERSION }}-portable
+          path: dist/SimScan-${{ env.SIMSCAN_VERSION }}-portable.zip
           if-no-files-found: error
 
       - name: Upload installer as a workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SimScan-1.0.0-installer
+          name: SimScan-${{ env.SIMSCAN_VERSION }}-installer
           path: |
-            dist/installer/SimScan-1.0.0-Setup.exe
+            dist/installer/SimScan-${{ env.SIMSCAN_VERSION }}-Setup.exe
             dist/SHA256SUMS.txt
           if-no-files-found: error
 
@@ -211,7 +256,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/installer/SimScan-1.0.0-Setup.exe
-            dist/SimScan-1.0.0-portable.zip
+            dist/installer/SimScan-${{ env.SIMSCAN_VERSION }}-Setup.exe
+            dist/SimScan-${{ env.SIMSCAN_VERSION }}-portable.zip
             dist/SHA256SUMS.txt
           generate_release_notes: true

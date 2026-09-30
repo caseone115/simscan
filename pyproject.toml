@@ -4,7 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "simscan"
-version = "1.0.0"
+# The version lives in ONE place: simscan/__init__.py:__version__.
+# scripts/check_version_consistency.py fails if a literal reappears here.
+dynamic = ["version"]
 description = "Offline auditor for The Sims 4 Mods folder"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -20,3 +22,6 @@ simscan = "simscan.__main__:main"
 
 [tool.setuptools]
 packages = ["simscan"]
+
+[tool.setuptools.dynamic]
+version = { attr = "simscan.__version__" }

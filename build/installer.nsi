@@ -1,23 +1,24 @@
-; SimScan - NSIS installer script
+; SimScan - NSIS installer (the local Linux/Wine build path).
 ;
-; Built with the *native* Linux makensis (no Wine needed for this step), so
-; it produces a genuine Windows installer without a 32-bit Wine prefix.
+; The version is NOT written here. It is passed in by the build script:
 ;
-; Build:  makensis -V2 -DSRCDIR=../dist/SimScan -DOUTDIR=../dist/installer \
-;                   build/installer.nsi
+;   makensis -DAPPVERSION=<v> -DVERFOUR=<v.0> -DSRCDIR=... -DOUTDIR=... build/installer.nsi
+;
+; `build/build_windows.sh` reads the version from `scripts/version.py` (the single
+; source, `simscan.__version__`) and passes it in. Hard-coding it here is what let
+; the release ship as v1.0.1 carrying an installer that called itself 1.0.0; if
+; APPVERSION is missing the build now stops instead.
+; `scripts/check_version_consistency.py` asserts this file hard-codes nothing.
 
-Unicode true
-!include "MUI2.nsh"
-!include "FileFunc.nsh"
-!include "LogicLib.nsh"
-
-!define APPNAME     "SimScan"
-!define APPVERSION  "1.0.0"
-!define PUBLISHER   "SimScan"
-!define APPURL      "https://github.com/caseone115/simscan"
-!define APPEXE     "SimScan.exe"
-!define REGKEY      "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}"
-
+!ifndef APPVERSION
+  !error "APPVERSION undefined - pass -DAPPVERSION from scripts/version.py"
+!endif
+!ifndef VERFOUR
+  !error "VERFOUR undefined - pass -DVERFOUR from scripts/version.py --four"
+!endif
+!ifndef APPNAME
+  !define APPNAME "SimScan"
+!endif
 !ifndef SRCDIR
   !define SRCDIR "..\dist\SimScan"
 !endif
@@ -27,93 +28,50 @@ Unicode true
 
 Name "${APPNAME} ${APPVERSION}"
 OutFile "${OUTDIR}\${APPNAME}-${APPVERSION}-Setup.exe"
-InstallDir "$LOCALAPPDATA\Programs\${APPNAME}"
-InstallDirRegKey HKCU "Software\${APPNAME}" "InstallDir"
-RequestExecutionLevel user          ; per-user install: no UAC prompt
+InstallDir "$LOCALAPPDATA\${APPNAME}"
+RequestExecutionLevel user
 SetCompressor /SOLID lzma
-ShowInstDetails show
-ShowUninstDetails show
 
-VIProductVersion "1.0.0.0"
+VIProductVersion "${VERFOUR}"
 VIAddVersionKey "ProductName"     "${APPNAME}"
 VIAddVersionKey "FileDescription" "${APPNAME} Setup"
-VIAddVersionKey "FileVersion"     "${APPVERSION}"
+VIAddVersionKey "FileVersion"     "${VERFOUR}"
 VIAddVersionKey "ProductVersion"  "${APPVERSION}"
+VIAddVersionKey "CompanyName"     "SimScan"
 VIAddVersionKey "LegalCopyright"  "MIT Licence"
 
-!define MUI_ABORTWARNING
-!define MUI_ICON   "..\assets\simscan.ico"
+!include "MUI2.nsh"
+!define MUI_ICON "..\assets\simscan.ico"
 !define MUI_UNICON "..\assets\simscan.ico"
-!define MUI_HEADERIMAGE
-!define MUI_HEADERIMAGE_BITMAP "..\assets\wizard-small.bmp"
-!define MUI_WELCOMEFINISHPAGE_BITMAP "..\assets\wizard-large.bmp"
-
 !insertmacro MUI_PAGE_WELCOME
-!insertmacro MUI_PAGE_LICENSE "..\LICENSE"
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
-!define MUI_FINISHPAGE_RUN "$INSTDIR\${APPEXE}"
-!define MUI_FINISHPAGE_RUN_TEXT "Start SimScan now"
 !insertmacro MUI_PAGE_FINISH
-
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
-
 !insertmacro MUI_LANGUAGE "English"
 
-Section "SimScan (required)" SecMain
-  SectionIn RO
+Section "SimScan" SEC_MAIN
   SetOutPath "$INSTDIR"
   File /r "${SRCDIR}\*.*"
-
-  WriteRegStr HKCU "Software\${APPNAME}" "InstallDir" "$INSTDIR"
-  WriteRegStr HKCU "Software\${APPNAME}" "Version" "${APPVERSION}"
-
-  ; Add/Remove Programs entry so it uninstalls like a normal app
-  WriteRegStr   HKCU "${REGKEY}" "DisplayName"     "${APPNAME}"
-  WriteRegStr   HKCU "${REGKEY}" "DisplayVersion"  "${APPVERSION}"
-  WriteRegStr   HKCU "${REGKEY}" "Publisher"       "${PUBLISHER}"
-  WriteRegStr   HKCU "${REGKEY}" "URLInfoAbout"    "${APPURL}"
-  WriteRegStr   HKCU "${REGKEY}" "UninstallString" "$\"$INSTDIR\Uninstall.exe$\""
-  WriteRegStr   HKCU "${REGKEY}" "QuietUninstallString" "$\"$INSTDIR\Uninstall.exe$\" /S"
-  WriteRegStr   HKCU "${REGKEY}" "InstallLocation" "$INSTDIR"
-  WriteRegDWORD HKCU "${REGKEY}" "NoModify" 1
-  WriteRegDWORD HKCU "${REGKEY}" "NoRepair" 1
-
-  ${GetSize} "$INSTDIR" "/S=0K" $0 $1 $2
-  IntFmt $0 "0x%08X" $0
-  WriteRegDWORD HKCU "${REGKEY}" "EstimatedSize" "$0"
-
-  WriteUninstaller "$INSTDIR\Uninstall.exe"
-SectionEnd
-
-Section "Start Menu shortcut" SecStartMenu
+  WriteUninstaller "$INSTDIR\uninstall.exe"
   CreateDirectory "$SMPROGRAMS\${APPNAME}"
-  CreateShortcut "$SMPROGRAMS\${APPNAME}\${APPNAME}.lnk" \
-                 "$INSTDIR\${APPEXE}" "" "$INSTDIR\${APPEXE}" 0
-  CreateShortcut "$SMPROGRAMS\${APPNAME}\Uninstall ${APPNAME}.lnk" \
-                 "$INSTDIR\Uninstall.exe"
+  CreateShortCut "$SMPROGRAMS\${APPNAME}\${APPNAME}.lnk" "$INSTDIR\${APPNAME}.exe"
+  ; The version the OS reports for this install. A package manager reads this
+  ; back to decide whether the installed version matches its manifest, so it has
+  ; to be the same version as the filename and the binary's own resource.
+  WriteRegStr HKCU "Software\${APPNAME}" "Version" "${APPVERSION}"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "DisplayName" "${APPNAME}"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "DisplayVersion" "${APPVERSION}"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "UninstallString" "$INSTDIR\uninstall.exe"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "Publisher" "SimScan"
 SectionEnd
-
-Section /o "Desktop shortcut" SecDesktop
-  CreateShortcut "$DESKTOP\${APPNAME}.lnk" \
-                 "$INSTDIR\${APPEXE}" "" "$INSTDIR\${APPEXE}" 0
-SectionEnd
-
-LangString DESC_SecMain      ${LANG_ENGLISH} "The SimScan application files. Required."
-LangString DESC_SecStartMenu ${LANG_ENGLISH} "Add SimScan to the Start Menu."
-LangString DESC_SecDesktop   ${LANG_ENGLISH} "Add a SimScan shortcut to the desktop."
-
-!insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecMain}      $(DESC_SecMain)
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecStartMenu} $(DESC_SecStartMenu)
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecDesktop}   $(DESC_SecDesktop)
-!insertmacro MUI_FUNCTION_DESCRIPTION_END
 
 Section "Uninstall"
-  Delete "$DESKTOP\${APPNAME}.lnk"
-  RMDir /r "$SMPROGRAMS\${APPNAME}"
+  Delete "$INSTDIR\uninstall.exe"
   RMDir /r "$INSTDIR"
-  DeleteRegKey HKCU "${REGKEY}"
+  Delete "$SMPROGRAMS\${APPNAME}\${APPNAME}.lnk"
+  RMDir "$SMPROGRAMS\${APPNAME}"
+  DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}"
   DeleteRegKey HKCU "Software\${APPNAME}"
 SectionEnd
