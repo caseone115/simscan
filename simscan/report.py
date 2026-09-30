@@ -168,6 +168,22 @@ def to_html(result, path):
                              f'more</div>')
         parts.append("</div>")
 
+    # A footer with the way home and the way to buy. Added 2026-09-30 after
+    # reading the published sample report back as a stranger: the landing page
+    # invites a buyer to "Open the full HTML report", and the report they landed
+    # on had no link back and no way to buy - a dead end, on a product whose
+    # only content is that report. It lives in the engine rather than in the
+    # published sample so the sample stays honestly "unedited engine output",
+    # and so every buyer's own report carries the link too.
+    from simscan import __version__ as _v
+    parts.append(
+        '<footer>SimScan ' + e(_v) + ' &middot; offline Mods-folder auditor for'
+        ' The Sims 4 &middot; <a href="https://caseone115.github.io/simscan/">'
+        'SimScan home</a> &middot; '
+        '<a href="https://teeterbot.gumroad.com/l/simscan">Get SimScan - '
+        'US$14</a> &middot; '
+        '<a href="https://github.com/caseone115/simscan">source (MIT)</a>'
+        '</footer>')
     parts.append("</div></body></html>")
     with open(path, "w", encoding="utf-8") as fh:
         fh.write("\n".join(parts))

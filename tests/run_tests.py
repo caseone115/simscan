@@ -18,7 +18,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, ROOT)
 
-from simscan import analyzer, dbpf, dds, recyclex, report      # noqa: E402
+from simscan import __version__, analyzer, dbpf, dds, recyclex, report  # noqa: E402
 
 SAMPLES = os.path.join(ROOT, "build", "samples")
 PASS, FAIL = [], []
@@ -334,6 +334,17 @@ def test_reports(tmp):
         writer(res, p)
         check(f"wrote {fn}", os.path.getsize(p) > 50,
               str(os.path.getsize(p)))
+
+    # The published sample report is a real to_html() output, and the landing
+    # page invites a buyer to open it. Nothing asserted what was IN it, so it
+    # shipped as a dead end: no link home, no way to buy. Assert the two links
+    # now, because the page that promises "a real report, not a mock-up" has to
+    # be a page a reader can leave.
+    html = open(os.path.join(tmp, "r.html")).read()
+    check("report links the SimScan home page",
+          'https://caseone115.github.io/simscan/' in html)
+    check("report links the shop", "https://teeterbot.gumroad.com/l/simscan" in html)
+    check("report footer names the installed version", __version__ in html)
 
     import json
     data = json.load(open(os.path.join(tmp, "r.json")))
