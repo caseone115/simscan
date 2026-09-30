@@ -173,12 +173,31 @@ jobs:
           Write-Host "  [ok] installed SimScan.exe, Start Menu shortcut and uninstaller"
 
           # The version the OS records for this install is exactly what a
-          # package manager reads back to decide whether it matches a manifest.
-          $key = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\SimScan"
-          $dv = (Get-ItemProperty -Path $key -Name DisplayVersion).DisplayVersion
-          Write-Host "  uninstall entry DisplayVersion: $dv"
-          if ($dv -ne $env:SIMSCAN_VERSION) {
-            throw "installed version is $dv but the release version is $($env:SIMSCAN_VERSION)"
+          # package manager reads back to decide whether it matches a manifest,
+          # so it is asserted rather than assumed.
+          #
+          # Find the entry by its DisplayName, not by a guessed key path.
+          # Inno Setup names the key after the AppId GUID, not after the app:
+          # the first version of this step looked for ...\Uninstall\SimScan and
+          # failed with "Cannot find path ... because it does not exist" against
+          # an installer that had in fact installed perfectly. Reading the
+          # Uninstall list is correct for both Inno and NSIS.
+          $root = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall"
+          $entry = Get-ChildItem $root |
+            ForEach-Object { Get-ItemProperty $_.PSPath } |
+            Where-Object { $_.DisplayName -eq "SimScan" } |
+            Select-Object -First 1
+          if (-not $entry) {
+            Write-Host "--- everything in the Add/Remove Programs list: ---"
+            Get-ChildItem $root | ForEach-Object {
+              $e = Get-ItemProperty $_.PSPath
+              Write-Host "  [$($_.PSChildName)] '$($e.DisplayName)' v$($e.DisplayVersion)"
+            }
+            throw "no SimScan entry in the Add/Remove Programs list after installing"
+          }
+          Write-Host "  uninstall entry in $($entry.PSChildName): DisplayVersion $($entry.DisplayVersion)"
+          if ($entry.DisplayVersion -ne $env:SIMSCAN_VERSION) {
+            throw "installed version is $($entry.DisplayVersion) but the release version is $($env:SIMSCAN_VERSION)"
           }
           Write-Host "  [ok] the installed version matches the release version"
 
