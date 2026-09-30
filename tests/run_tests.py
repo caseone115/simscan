@@ -400,6 +400,46 @@ def test_version_surfaces():
           r2.returncode == 0, (r2.stdout or "").strip()[-200:])
 
 
+def test_winget_manifest():
+    """The winget manifest must agree with the source, and the check must fail.
+
+    Added 2026-09-30 alongside the manifest itself. Work-queue item 15
+    (submitting SimScan to microsoft/winget-pkgs) was blocked on the installer
+    disagreeing with itself about its version, which v1.0.2 fixed. This keeps
+    the manifest from drifting the same way: the structure check is offline,
+    and the fault injection restores a real drift and requires a refusal, so
+    the guard has been seen to fail rather than only to pass.
+    """
+    print("\nwinget manifest")
+    import subprocess
+    import yaml
+    chk = os.path.join(ROOT, "scripts", "check_winget_manifest.py")
+    r = subprocess.run([sys.executable, chk], capture_output=True, text=True, cwd=ROOT)
+    tail = (r.stdout or "").strip().splitlines()
+    check("winget manifest passes its own check", r.returncode == 0,
+          (tail[-1][:220] if tail else ""))
+
+    from simscan import __version__ as v
+    base = os.path.join(ROOT, "winget", "manifests", "s", "SimScan", "SimScan", v)
+    check("winget manifest exists for the shipped version", os.path.isdir(base), base)
+
+    ins = os.path.join(base, "SimScan.SimScan.installer.yaml")
+    if not os.path.isfile(ins):
+        check("winget installer manifest is present", False, ins)
+        return
+    original = open(ins).read()
+    try:
+        doc = yaml.safe_load(original)
+        doc["PackageVersion"] = "0.0.0"
+        open(ins, "w").write(yaml.safe_dump(doc, sort_keys=False))
+        r2 = subprocess.run([sys.executable, chk], capture_output=True, text=True, cwd=ROOT)
+        tail2 = (r2.stdout or "").strip().splitlines()
+        check("winget manifest check refuses a drifted version", r2.returncode != 0,
+              (tail2[-1][:220] if tail2 else ""))
+    finally:
+        open(ins, "w").write(original)
+
+
 def main():
     print("=" * 68)
     print("SimScan test suite")
@@ -415,6 +455,7 @@ def main():
         test_reports(tmp)
         test_exception(tmp)
         test_version_surfaces()
+        test_winget_manifest()
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 

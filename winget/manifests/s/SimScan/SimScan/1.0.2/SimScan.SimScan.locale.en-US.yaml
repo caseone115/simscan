@@ -1,0 +1,30 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.locale.1.12.0.schema.json
+PackageIdentifier: SimScan.SimScan
+PackageVersion: 1.0.2
+PackageLocale: en-US
+Publisher: SimScan
+PublisherUrl: https://github.com/caseone115/simscan
+PublisherSupportUrl: https://github.com/caseone115/simscan/issues
+PackageName: SimScan
+PackageUrl: https://caseone115.github.io/simscan/
+License: MIT
+LicenseUrl: https://github.com/caseone115/simscan/blob/main/LICENSE
+Copyright: Copyright (c) SimScan contributors
+ShortDescription: Offline auditor for The Sims 4 Mods folder
+Description: >-
+  SimScan audits a Sims 4 Mods folder without a network connection. It reports
+  duplicate packages, missing dependencies and broken links, and it can repair
+  the conflicts it finds. It is a standalone external utility: no game files are
+  read from or written to, and it is not affiliated with or endorsed by
+  Electronic Arts.
+Moniker: simscan
+Tags:
+- sims4
+- mods
+- mod-manager
+- conflict-detection
+- gaming
+- utilities
+ReleaseNotesUrl: https://github.com/caseone115/simscan/releases/tag/v1.0.2
+ManifestType: locale
+ManifestVersion: 1.12.0
