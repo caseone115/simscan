@@ -104,6 +104,7 @@ def to_html(result, path):
     parts = []
     parts.append(f"""<!doctype html>
 <html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SimScan report - {e(result.root)}</title>
 <style>
  body{{font:15px/1.55 -apple-system,Segoe UI,Roboto,sans-serif;
@@ -133,6 +134,16 @@ def to_html(result, path):
  th,td{{text-align:left;padding:6px 8px;border-bottom:1px solid #232c40}}
  th{{color:#8b98ad;font-weight:500}}
  footer{{color:#5d6a80;font-size:12px;margin-top:40px}}
+ @media (max-width:600px){{
+  .wrap{{padding:20px 14px 48px}}
+  h1{{font-size:22px}}
+  .cards{{gap:8px;margin-bottom:20px}}
+  .card{{min-width:0;flex:1 1 44%;padding:10px 12px}}
+  .card b{{font-size:19px}}
+  .finding{{padding:14px}}
+  table{{font-size:12px}}
+  th,td{{padding:5px 6px}}
+ }}
 </style></head><body><div class="wrap">
 <h1>SimScan report</h1>
 <div class="sub">{e(result.root)} &middot; {time.strftime('%Y-%m-%d %H:%M:%S')}
